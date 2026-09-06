@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1200" viewBox="0 0 1600 1200" role="img" aria-label="Misty Finnish lake shoreline at sunrise">
+  <defs>
+    <linearGradient id="sky-0" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#E7EEE7" />
+      <stop offset="100%" stop-color="#CFE2E2" />
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="1200" fill="url(#sky-0)" />
+  <circle cx="1312" cy="288" r="108" fill="#d9cdb4" opacity="0.85" />
+  
+  <path d="M0,1200 L0.0,765.6 L200.0,806.2 L400.0,811.6 L600.0,774.9 L800.0,719.5 L1000.0,682.2 L1200.0,686.3 L1400.0,724.6 L1600.0,765.3 L1600,1200 Z" fill="#3c6e71" opacity="0.55" />
+  <path d="M0,1200 L0.0,906.9 L200.0,877.5 L400.0,864.7 L600.0,876.9 L800.0,902.8 L1000.0,919.7 L1200.0,911.3 L1400.0,880.8 L1600.0,848.8 L1600,1200 Z" fill="#1f3a2c" opacity="0.9" />
+  <line x1="128" y1="960" x2="1472" y2="960" stroke="#CFE2E2" stroke-width="2" opacity="0.5" /><line x1="128" y1="966" x2="1472" y2="966" stroke="#CFE2E2" stroke-width="2" opacity="0.44" /><line x1="128" y1="972" x2="1472" y2="972" stroke="#CFE2E2" stroke-width="2" opacity="0.38" /><line x1="128" y1="978" x2="1472" y2="978" stroke="#CFE2E2" stroke-width="2" opacity="0.32" /><line x1="128" y1="984" x2="1472" y2="984" stroke="#CFE2E2" stroke-width="2" opacity="0.26" /><line x1="128" y1="990" x2="1472" y2="990" stroke="#CFE2E2" stroke-width="2" opacity="0.2" />
+  
+  
+  <g transform="translate(64 1092)">
+    <rect x="0" y="-30" width="245.5" height="26" rx="13" fill="rgba(35,40,31,0.55)" />
+    <text x="14" y="-12" font-family="Arial, sans-serif" font-size="13" fill="#faf7f1" font-weight="600">Manature AI — placeholder</text>
+  </g>
+</svg>

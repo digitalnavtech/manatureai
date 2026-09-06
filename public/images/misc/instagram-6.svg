@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600" role="img" aria-label="Instagram preview: lakeside sauna">
+  <defs>
+    <linearGradient id="sky-24" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#F5EBDA" />
+      <stop offset="100%" stop-color="#EAD9BE" />
+    </linearGradient>
+  </defs>
+  <rect width="600" height="600" fill="url(#sky-24)" />
+  <circle cx="96" cy="144" r="54" fill="#c98a3d" opacity="0.85" />
+  
+  <path d="M0,600 L0.0,340.6 L75.0,362.6 L150.0,389.8 L225.0,404.2 L300.0,397.4 L375.0,376.4 L450.0,358.3 L525.0,357.0 L600.0,372.6 L600,600 Z" fill="#8a5a35" opacity="0.55" />
+  <path d="M0,600 L0.0,455.2 L75.0,446.6 L150.0,433.7 L225.0,427.8 L300.0,435.1 L375.0,451.7 L450.0,466.1 L525.0,468.1 L600.0,456.0 L600,600 Z" fill="#3a2c1f" opacity="0.9" />
+  
+  
+  <g transform="translate(432 300)" opacity="0.9">
+           <rect x="-40" y="-10" width="90" height="70" rx="4" fill="#3a2c1f" />
+           <polygon points="-50,-10 5,-52 60,-10" fill="#8a5a35" />
+           <rect x="-8" y="20" width="26" height="40" fill="#F5EBDA" opacity="0.7" />
+         </g>
+  <g transform="translate(24 546)">
+    <rect x="0" y="-30" width="112.5" height="26" rx="13" fill="rgba(35,40,31,0.55)" />
+    <text x="14" y="-12" font-family="Arial, sans-serif" font-size="13" fill="#faf7f1" font-weight="600">@manatureai</text>
+  </g>
+</svg>

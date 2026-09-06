@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-label="Turku archipelago coastline">
+  <defs>
+    <linearGradient id="sky-5" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#E7EEE7" />
+      <stop offset="100%" stop-color="#CFE2E2" />
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="900" fill="url(#sky-5)" />
+  <circle cx="1312" cy="216" r="81" fill="#d9cdb4" opacity="0.85" />
+  
+  <path d="M0,900 L0.0,505.6 L200.0,533.8 L400.0,574.9 L600.0,601.3 L800.0,596.9 L1000.0,568.6 L1200.0,540.4 L1400.0,535.1 L1600.0,556.5 L1600,900 Z" fill="#3c6e71" opacity="0.55" />
+  <path d="M0,900 L0.0,682.4 L200.0,671.2 L400.0,651.1 L600.0,639.3 L800.0,647.2 L1000.0,671.3 L1200.0,695.7 L1400.0,703.4 L1600.0,689.3 L1600,900 Z" fill="#1f3a2c" opacity="0.9" />
+  <line x1="128" y1="720" x2="1472" y2="720" stroke="#CFE2E2" stroke-width="2" opacity="0.5" /><line x1="128" y1="726" x2="1472" y2="726" stroke="#CFE2E2" stroke-width="2" opacity="0.44" /><line x1="128" y1="732" x2="1472" y2="732" stroke="#CFE2E2" stroke-width="2" opacity="0.38" /><line x1="128" y1="738" x2="1472" y2="738" stroke="#CFE2E2" stroke-width="2" opacity="0.32" /><line x1="128" y1="744" x2="1472" y2="744" stroke="#CFE2E2" stroke-width="2" opacity="0.26" /><line x1="128" y1="750" x2="1472" y2="750" stroke="#CFE2E2" stroke-width="2" opacity="0.2" />
+  
+  
+  <g transform="translate(64 819)">
+    <rect x="0" y="-30" width="188.5" height="26" rx="13" fill="rgba(35,40,31,0.55)" />
+    <text x="14" y="-12" font-family="Arial, sans-serif" font-size="13" fill="#faf7f1" font-weight="600">Turku — placeholder</text>
+  </g>
+</svg>

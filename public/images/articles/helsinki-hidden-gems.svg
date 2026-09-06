@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800" role="img" aria-label="Quiet hidden courtyard path in Helsinki">
+  <defs>
+    <linearGradient id="sky-8" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#EFE7D4" />
+      <stop offset="100%" stop-color="#D7E4D1" />
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="800" fill="url(#sky-8)" />
+  <circle cx="983.9999999999999" cy="192" r="72" fill="#c98a3d" opacity="0.85" />
+  
+  <path d="M0,800 L0.0,517.8 L150.0,502.9 L300.0,476.2 L450.0,460.4 L600.0,470.9 L750.0,503.1 L900.0,535.6 L1050.0,545.9 L1200.0,527.0 L1200,800 Z" fill="#4a6b52" opacity="0.55" />
+  <path d="M0,800 L0.0,558.4 L150.0,568.4 L300.0,590.9 L450.0,610.3 L600.0,613.8 L750.0,601.0 L900.0,583.8 L1050.0,577.1 L1200.0,587.1 L1200,800 Z" fill="#1f3a2c" opacity="0.9" />
+  
+  
+    <g transform="translate(216 624) scale(0.9)" fill="#1f3a2c" opacity="0.85">
+      <path d="M0,-40 L14,-10 L6,-10 L18,14 L8,14 L20,40 L-20,40 L-8,14 L-18,14 L-6,-10 L-14,-10 Z" />
+    </g>
+    <g transform="translate(384 624) scale(1.25)" fill="#4a6b52" opacity="0.85">
+      <path d="M0,-40 L14,-10 L6,-10 L18,14 L8,14 L20,40 L-20,40 L-8,14 L-18,14 L-6,-10 L-14,-10 Z" />
+    </g>
+    <g transform="translate(744 624) scale(1.6)" fill="#1f3a2c" opacity="0.85">
+      <path d="M0,-40 L14,-10 L6,-10 L18,14 L8,14 L20,40 L-20,40 L-8,14 L-18,14 L-6,-10 L-14,-10 Z" />
+    </g>
+    <g transform="translate(936 624) scale(0.9)" fill="#4a6b52" opacity="0.85">
+      <path d="M0,-40 L14,-10 L6,-10 L18,14 L8,14 L20,40 L-20,40 L-8,14 L-18,14 L-6,-10 L-14,-10 Z" />
+    </g>
+    <g transform="translate(1056 624) scale(1.25)" fill="#1f3a2c" opacity="0.85">
+      <path d="M0,-40 L14,-10 L6,-10 L18,14 L8,14 L20,40 L-20,40 L-8,14 L-18,14 L-6,-10 L-14,-10 Z" />
+    </g>
+  
+  <g transform="translate(48 728)">
+    <rect x="0" y="-30" width="207.5" height="26" rx="13" fill="rgba(35,40,31,0.55)" />
+    <text x="14" y="-12" font-family="Arial, sans-serif" font-size="13" fill="#faf7f1" font-weight="600">Article — placeholder</text>
+  </g>
+</svg>
