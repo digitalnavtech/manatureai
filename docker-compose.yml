@@ -1,0 +1,33 @@
+services:
+  manatureai:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION: ${NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION:-}
+        NEXT_PUBLIC_GA_MEASUREMENT_ID: ${NEXT_PUBLIC_GA_MEASUREMENT_ID:-}
+    image: manatureai:local
+    container_name: manatureai
+    restart: unless-stopped
+    expose:
+      - "3000"
+    networks:
+      - traefik
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=${TRAEFIK_NETWORK:?Set TRAEFIK_NETWORK in .env}"
+      - "traefik.http.routers.manatureai-websecure.rule=Host(`manatureai.com`)"
+      - "traefik.http.routers.manatureai-websecure.entrypoints=websecure"
+      - "traefik.http.routers.manatureai-websecure.tls=true"
+      - "traefik.http.routers.manatureai-websecure.tls.certresolver=${TRAEFIK_CERT_RESOLVER:?Set TRAEFIK_CERT_RESOLVER in .env}"
+      - "traefik.http.routers.manatureai-websecure.service=manatureai-app"
+      - "traefik.http.services.manatureai-app.loadbalancer.server.port=3000"
+
+networks:
+  traefik:
+    external: true
+    name: ${TRAEFIK_NETWORK:?Set TRAEFIK_NETWORK in .env}

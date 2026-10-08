@@ -1,0 +1,49 @@
+# Dependencies and Next.js build output
+node_modules
+.next
+out
+build
+
+# Version control and editor metadata
+.git
+.gitignore
+.gitattributes
+.github
+.vscode
+.idea
+.claude
+.agents
+.codex
+
+# Environment files and credentials
+.env
+.env.*
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# Logs, caches, test output, and local artifacts
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.eslintcache
+coverage
+test-results
+playwright-report
+*.tsbuildinfo
+.DS_Store
+Thumbs.db
+
+# Files that are not needed in the image build context
+Dockerfile*
+docker-compose*.yml
+docker-compose*.yaml
+DEPLOYMENT.md
+README.md
+PRD.md
+memory.md
+product
