@@ -1,63 +1,48 @@
 import type { Metadata } from "next";
-import { Inter, Fraunces } from "next/font/google";
-import "./globals.css";
-import { Header } from "@/components/layout/Header";
+import { DM_Sans, Lora } from "next/font/google";
 import { Footer } from "@/components/layout/Footer";
+import { Header } from "@/components/layout/Header";
+import { JsonLd } from "@/components/content/ArticleComponents";
 import { Analytics } from "@/components/analytics/Analytics";
-import { JsonLd } from "@/components/content/JsonLd";
-import { organizationSchema, websiteSchema } from "@/lib/seo/schema";
-import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/seo/config";
+import { siteConfig } from "@/lib/site";
+import "./globals.css";
 
-const inter = Inter({
-  variable: "--font-inter",
+const dmSans = DM_Sans({
+  variable: "--font-sans",
   subsets: ["latin"],
   display: "swap",
 });
 
-const fraunces = Fraunces({
-  variable: "--font-fraunces",
+const lora = Lora({
+  variable: "--font-serif",
   subsets: ["latin"],
   display: "swap",
-  axes: ["opsz"],
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(SITE_URL),
-  title: {
-    default: `${SITE_NAME} — Discover Finland Beyond the Usual Tourist Routes`,
-    template: `%s | ${SITE_NAME}`,
-  },
-  description: SITE_DESCRIPTION,
-  verification: {
-    google: process.env.NEXT_PUBLIC_GSC_VERIFICATION || undefined,
-  },
-  alternates: {
-    canonical: "/",
-    types: {
-      "application/rss+xml": "/rss.xml",
-    },
-  },
+  metadataBase: new URL(siteConfig.url),
+  title: { default: "ManatureAI | Birds, Wildlife & Smart Nature Tech", template: "%s | ManatureAI" },
+  description: siteConfig.description,
+  applicationName: siteConfig.name,
+  authors: [{ name: "ManatureAI Editorial" }],
+  category: "Nature and wildlife",
+  alternates: { canonical: siteConfig.url },
+  robots: { index: true, follow: true },
+  openGraph: { type: "website", siteName: siteConfig.name, url: siteConfig.url, title: "ManatureAI | Nature, closer", description: siteConfig.description },
+  twitter: { card: "summary_large_image", title: "ManatureAI | Nature, closer", description: siteConfig.description },
+  verification: { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION },
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${inter.variable} ${fraunces.variable} h-full`}>
-      <body className="flex min-h-full flex-col antialiased">
-        <JsonLd data={organizationSchema()} />
-        <JsonLd data={websiteSchema()} />
-        <a href="#main-content" className="skip-link">
-          Skip to content
-        </a>
+    <html lang="en" className={`${dmSans.variable} ${lora.variable}`}>
+      <body>
+        <a className="skip-link" href="#main-content">Skip to content</a>
         <Header />
-        <main id="main-content" className="flex-1">
-          {children}
-        </main>
+        <div id="main-content">{children}</div>
         <Footer />
         <Analytics />
+        <JsonLd data={[{ "@context": "https://schema.org", "@type": "Organization", name: siteConfig.name, url: siteConfig.url, description: siteConfig.description }, { "@context": "https://schema.org", "@type": "WebSite", name: siteConfig.name, url: siteConfig.url }]} />
       </body>
     </html>
   );

@@ -1,0 +1,5 @@
+import type { Metadata } from "next";
+import { ListingPage } from "@/components/content/ListingPage";
+import { createMetadata } from "@/lib/metadata";
+export const metadata: Metadata = createMetadata({ title: "Best Bird Feeders & Nature Technology", description: "Careful buying guides for bird feeder cameras and useful backyard nature technology.", path: "/best" });
+export default function Page() { return <ListingPage eyebrow="Buying guides in progress" title="Choose tools that earn their place outside." intro="Our best-pick guides focus on useful differences, ownership tradeoffs, and transparent affiliate disclosure." cards={[{ eyebrow: "Current review", title: "Smart bird feeder with camera", description: "Explore a solar-assisted 2K feeder camera with alerts and AI-assisted identification.", href: "/reviews/smart-bird-feeder-with-camera", image: "/ai_mages/2K HD Bird Feeder Camera Ad.png" }, { eyebrow: "Coming guide", title: "Best bird feeders with cameras", description: "The features that matter, the ones that may cost extra, and what to check before buying.", href: "/best" }]} />; }

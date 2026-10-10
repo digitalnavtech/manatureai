@@ -1,0 +1,5 @@
+import type { Metadata } from "next";
+import { ListingPage } from "@/components/content/ListingPage";
+import { createMetadata } from "@/lib/metadata";
+export const metadata: Metadata = createMetadata({ title: "Bird Watching & Backyard Birds", description: "Approachable bird watching guidance for noticing, identifying, and welcoming backyard birds.", path: "/birds" });
+export default function Page() { return <ListingPage eyebrow="Birding for curious people" title="Notice more of the birds around you." intro="Beginner-friendly observation ideas and responsible ways to make a backyard more welcoming." cards={[{ eyebrow: "Coming field guide", title: "Bird watching for beginners", description: "A calm introduction to observing behavior, keeping notes, and learning common visitors.", href: "/birds" }, { eyebrow: "Coming field guide", title: "How to attract birds responsibly", description: "Food, water, shelter, and the routines that help support healthier backyard visits.", href: "/birds" }]} />; }
