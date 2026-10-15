@@ -184,6 +184,23 @@ ssh-copy-id -i manatureai_actions.pub -p 22 DEPLOY_USER@72.62.116.152
 
 If `ssh-copy-id` is unavailable, append the contents of `manatureai_actions.pub` to `~/.ssh/authorized_keys` on the VPS. Set `~/.ssh` to mode `700` and `authorized_keys` to mode `600`. The deployment user must be able to read/write `VPS_DEPLOY_DIR`, fetch its Git repository, and run `docker`, including Docker Compose and network inspection, without an interactive password. Rootless Docker is the least-privilege option. Membership in the conventional `docker` group is effectively root-level access; use it only if that risk is accepted. Do not grant unrestricted passwordless `sudo` merely for this workflow.
 
+### Replace the deployment key safely
+
+Before connecting, the workflow normalises the `VPS_SSH_KEY` secret (Windows line endings, flattened or `\n`-escaped line breaks), checks it with `ssh-keygen -y` without printing it, and logs only its SHA256 fingerprint. It reports a passphrase-protected key, a public key, a PuTTY `.ppk` file, or a truncated paste by name.
+
+If the key is rejected, or `Permission denied (publickey)` persists after it loads, create a new key rather than reusing a personal one. On Windows run these in PowerShell or Git Bash:
+
+```bash
+ssh-keygen -t ed25519 -f manatureai_actions -C manatureai-github-actions -N ''
+ssh-keygen -lf manatureai_actions.pub -E sha256
+```
+
+1. Add the public key on the VPS: open the Hostinger browser terminal as `VPS_USER` and append the single line from `manatureai_actions.pub` to `~/.ssh/authorized_keys` (do not delete other lines). Then run `chmod 700 ~/.ssh && chmod 600 ~/.ssh/authorized_keys` and `ssh-keygen -lf ~/.ssh/authorized_keys -E sha256` to confirm the new fingerprint is listed.
+2. Replace the GitHub secret: open `manatureai_actions` (no `.pub`) in a plain text editor, copy everything from `-----BEGIN OPENSSH PRIVATE KEY-----` through `-----END OPENSSH PRIVATE KEY-----`, and paste it as the new `VPS_SSH_KEY` value.
+3. Test from the administrator machine before re-running the workflow: `ssh -i manatureai_actions -o IdentitiesOnly=yes VPS_USER@72.62.116.152 true`.
+4. Re-run the workflow. The **Configure SSH** log prints `Deploy key loaded` with a fingerprint that must equal the one from step 1.
+5. Once a deployment succeeds, delete the local `manatureai_actions` private key file, and remove the line for any old, unused key from `authorized_keys`.
+
 Obtain the VPS SSH host-key fingerprint through a trusted channel such as the Hostinger console or the server administrator. At the VPS console, an administrator can display the Ed25519 fingerprint with:
 
 ```bash

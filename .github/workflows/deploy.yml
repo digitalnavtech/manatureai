@@ -92,8 +92,55 @@ jobs:
           test "$VPS_DEPLOY_DIR" != "/"
 
           install -d -m 700 "$HOME/.ssh"
-          printf '%s\n' "$VPS_SSH_KEY" > "$HOME/.ssh/manatureai_deploy"
-          chmod 600 "$HOME/.ssh/manatureai_deploy"
+          key_file="$HOME/.ssh/manatureai_deploy"
+
+          key_error() {
+            echo "::error::VPS_SSH_KEY $1 Paste the entire private key file (from -----BEGIN through -----END) into the secret. See DEPLOYMENT.md section 6." >&2
+            exit 1
+          }
+
+          # Normalise common paste damage without ever printing the key:
+          # Windows line endings, surrounding quotes, literal "\n" sequences,
+          # and line breaks flattened into spaces. Blank lines around the key
+          # are dropped.
+          ssh_key="$(printf '%s' "$VPS_SSH_KEY" | tr -d '\r')"
+          ssh_key="${ssh_key#"${ssh_key%%[![:space:]]*}"}"
+          ssh_key="${ssh_key%"${ssh_key##*[![:space:]]}"}"
+          if [[ ${#ssh_key} -ge 2 && ( "$ssh_key" == \"*\" || "$ssh_key" == \'*\' ) ]]; then
+            ssh_key="${ssh_key:1:${#ssh_key}-2}"
+          fi
+          if [[ "$ssh_key" != *$'\n'* && "$ssh_key" == *'\n'* ]]; then
+            ssh_key="${ssh_key//\\n/$'\n'}"
+          fi
+          if [[ "$ssh_key" != *$'\n'* && "$ssh_key" =~ ^[[:space:]]*(-----BEGIN [A-Z0-9 ]+-----)[[:space:]]+(.+)[[:space:]]+(-----END [A-Z0-9 ]+-----)[[:space:]]*$ ]]; then
+            ssh_key="${BASH_REMATCH[1]}"$'\n'"$(printf '%s' "${BASH_REMATCH[2]}" | tr -s ' ' '\n')"$'\n'"${BASH_REMATCH[3]}"
+          fi
+          ssh_key="$(printf '%s\n' "$ssh_key" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' | sed -e '/./,$!d')"
+
+          first_line="$(printf '%s\n' "$ssh_key" | head -n 1)"
+          last_line="$(printf '%s\n' "$ssh_key" | tail -n 1)"
+          case "$first_line" in
+            PuTTY-User-Key-File-*) key_error 'is a PuTTY .ppk key. Export it in OpenSSH format (PuTTYgen > Conversions > Export OpenSSH key).' ;;
+            ssh-*|ecdsa-*) key_error 'contains a public key. It must contain the private key (the file without .pub).' ;;
+            -----BEGIN*PRIVATE\ KEY-----) ;;
+            *) key_error 'does not start with a -----BEGIN ... PRIVATE KEY----- line.' ;;
+          esac
+          [[ "$last_line" == -----END*PRIVATE\ KEY----- ]] || key_error 'does not end with a -----END ... PRIVATE KEY----- line, so it was probably cut off when pasted.'
+
+          (umask 077 && printf '%s\n' "$ssh_key" > "$key_file")
+          chmod 600 "$key_file"
+          unset ssh_key
+
+          # Derive the public key into a pipe (never printed) to prove the key loads.
+          if ! keygen_error="$(ssh-keygen -y -P '' -f "$key_file" 2>&1 >/dev/null)"; then
+            case "$keygen_error" in
+              *passphrase*) key_error 'is protected by a passphrase. GitHub Actions cannot type it; use a dedicated key created with an empty passphrase (-N "").' ;;
+              *) key_error 'could not be loaded by ssh-keygen (invalid or damaged key data).' ;;
+            esac
+          fi
+          key_fingerprint="$(ssh-keygen -y -P '' -f "$key_file" | ssh-keygen -l -E sha256 -f - | awk '{print $2}')"
+          echo "Deploy key loaded. Its fingerprint, which must match a line in ~/.ssh/authorized_keys of VPS_USER on the VPS: $key_fingerprint"
+
           # Pin the key under a fixed alias (used with HostKeyAlias below) so the
           # host field in VPS_KNOWN_HOSTS does not have to match VPS_HOST exactly.
           # Accepts either "<host> <type> <key>" or "<type> <key>".
@@ -114,6 +161,46 @@ jobs:
             echo '::error::VPS_KNOWN_HOSTS contains a malformed public key. Copy the line again from ssh-keyscan.' >&2
             exit 1
           fi
+
+      - name: Check SSH access to the VPS
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+        run: |
+          set -Eeuo pipefail
+          key_file="$HOME/.ssh/manatureai_deploy"
+          if ssh_error="$(ssh \
+            -i "$key_file" \
+            -p "$VPS_PORT" \
+            -o BatchMode=yes \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            -o HostKeyAlias=manatureai-vps \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            -o ConnectTimeout=20 \
+            "$VPS_USER@$VPS_HOST" true 2>&1 >/dev/null)"; then
+            echo 'SSH authentication to the VPS succeeded.'
+            exit 0
+          fi
+
+          # ssh's own stderr never contains key material; secrets in it are masked by GitHub.
+          key_fingerprint="$(ssh-keygen -y -P '' -f "$key_file" | ssh-keygen -l -E sha256 -f - | awk '{print $2}')"
+          case "$ssh_error" in
+            *'Host key verification failed'*|*'REMOTE HOST IDENTIFICATION HAS CHANGED'*)
+              message='The VPS host key does not match VPS_KNOWN_HOSTS. Confirm the host key through the Hostinger console before updating the secret (DEPLOYMENT.md section 6).' ;;
+            *'Permission denied'*)
+              message="The VPS rejected the deploy key. Add the public key with fingerprint $key_fingerprint to ~/.ssh/authorized_keys of VPS_USER (mode 600, ~/.ssh mode 700), and check that VPS_USER is correct." ;;
+            *'error in libcrypto'*|*'invalid format'*)
+              message='ssh could not load the deploy key. Replace VPS_SSH_KEY with the full OpenSSH private key (DEPLOYMENT.md section 6).' ;;
+            *'timed out'*|*'Connection refused'*|*'No route to host'*|*'Could not resolve'*)
+              message='The VPS SSH port could not be reached. Check VPS_HOST, VPS_PORT and the VPS firewall.' ;;
+            *)
+              message='SSH to the VPS failed for an unrecognised reason; see the ssh output above.' ;;
+          esac
+          printf '%s\n' "$ssh_error" >&2
+          echo "::error::$message" >&2
+          exit 1
 
       - name: Update and deploy only ManatureAI
         env:
