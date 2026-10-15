@@ -94,16 +94,24 @@ jobs:
           install -d -m 700 "$HOME/.ssh"
           printf '%s\n' "$VPS_SSH_KEY" > "$HOME/.ssh/manatureai_deploy"
           chmod 600 "$HOME/.ssh/manatureai_deploy"
-          printf '%s\n' "$VPS_KNOWN_HOSTS" | tr -d '\r' > "$HOME/.ssh/known_hosts"
-          chmod 600 "$HOME/.ssh/known_hosts"
-
-          if ! ssh-keygen -lf "$HOME/.ssh/known_hosts" >/dev/null 2>&1; then
-            echo '::error::VPS_KNOWN_HOSTS is not a valid known_hosts line. Paste the full "<host> ssh-ed25519 AAAA..." line, not the SHA256 fingerprint.' >&2
+          # Pin the key under a fixed alias (used with HostKeyAlias below) so the
+          # host field in VPS_KNOWN_HOSTS does not have to match VPS_HOST exactly.
+          # Accepts either "<host> <type> <key>" or "<type> <key>".
+          key_line="$(printf '%s\n' "$VPS_KNOWN_HOSTS" | tr -d '\r' | grep -Ev '^[[:space:]]*(#|$)' | head -n 1 || true)"
+          read -r field1 field2 field3 _ <<< "$key_line" || true
+          if [[ "${field1:-}" =~ ^(ssh-|ecdsa-) ]]; then
+            key_type="$field1"; key_data="${field2:-}"
+          else
+            key_type="${field2:-}"; key_data="${field3:-}"
+          fi
+          if [[ ! "$key_type" =~ ^(ssh-ed25519|ecdsa-sha2-nistp(256|384|521)|ssh-rsa)$ ]] || [[ ! "$key_data" =~ ^[A-Za-z0-9+/]+=*$ ]]; then
+            echo '::error::VPS_KNOWN_HOSTS is not a valid host-key line. Paste the full "<host> ssh-ed25519 AAAA..." line, not the SHA256 fingerprint.' >&2
             exit 1
           fi
-          if [ "$VPS_PORT" = "22" ]; then known_host="$VPS_HOST"; else known_host="[$VPS_HOST]:$VPS_PORT"; fi
-          if ! ssh-keygen -F "$known_host" -f "$HOME/.ssh/known_hosts" >/dev/null; then
-            echo '::error::VPS_KNOWN_HOSTS has no entry for VPS_HOST. Its first field must equal VPS_HOST exactly, or [VPS_HOST]:VPS_PORT when the port is not 22.' >&2
+          printf 'manatureai-vps %s %s\n' "$key_type" "$key_data" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/known_hosts"
+          if ! ssh-keygen -lf "$HOME/.ssh/known_hosts" >/dev/null 2>&1; then
+            echo '::error::VPS_KNOWN_HOSTS contains a malformed public key. Copy the line again from ssh-keyscan.' >&2
             exit 1
           fi
 
@@ -121,6 +129,7 @@ jobs:
             -o BatchMode=yes \
             -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=yes \
+            -o HostKeyAlias=manatureai-vps \
             -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
             "$VPS_USER@$VPS_HOST" \
             bash -se -- \

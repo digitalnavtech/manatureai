@@ -197,7 +197,7 @@ ssh-keyscan -p 22 -t ed25519 -H 72.62.116.152 > vps_known_hosts
 ssh-keygen -lf vps_known_hosts -E sha256
 ```
 
-Only after the fingerprints match, copy the complete `vps_known_hosts` line into GitHub. For a non-default port the host field will normally be `[host]:port`. The workflow writes this pinned key to its own `known_hosts` file and requires `StrictHostKeyChecking=yes`; it never uses `ssh-keyscan` during a run.
+Only after the fingerprints match, copy the complete `vps_known_hosts` line into GitHub. The workflow uses only the key type and key from that line and pins them under the fixed alias `manatureai-vps` (`HostKeyAlias`), so the host field does not have to match `VPS_HOST`; a bare `ssh-ed25519 AAAA...` value also works. It writes this pinned key to its own `known_hosts` file and requires `StrictHostKeyChecking=yes`; it never uses `ssh-keyscan` during a run.
 
 In GitHub, add these **Actions repository secrets** under **Settings > Secrets and variables > Actions**:
 
