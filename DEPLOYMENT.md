@@ -2,7 +2,7 @@
 
 This deployment runs ManatureAI as a standalone Next.js container behind the Traefik instance already installed on the VPS. It does not publish port 3000 on the host and does not create or change a Traefik container.
 
-Pushes to `main` and manual `workflow_dispatch` runs are checked and then deployed by [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml). The workflow reads the discovered absolute checkout path from the `VPS_DEPLOY_DIR` repository variable, preserves the existing `.env`, validates the Compose configuration and external Traefik network, and recreates only the `manatureai` service with `--no-deps`. The workflow never runs `docker compose down` or `--remove-orphans`.
+Pushes to `main` and manual `workflow_dispatch` runs are checked and then deployed by [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml). The workflow reads the discovered absolute checkout path from the `VPS_DEPLOY_DIR` repository secret, preserves the existing `.env`, validates the Compose configuration and external Traefik network, and recreates only the `manatureai` service with `--no-deps`. The workflow never runs `docker compose down` or `--remove-orphans`.
 
 This repository deliberately does not guess a VPS directory. Complete the discovery procedure below and set `VPS_DEPLOY_DIR` before enabling the workflow. Configure the GitHub `production` environment with a required reviewer while validating the first deployment so a push cannot deploy without approval.
 
@@ -14,7 +14,7 @@ Do not merge or manually run this workflow until the secrets, pinned host key, d
 - TCP ports 80 and 443 reach the existing Traefik instance.
 - Docker Engine and the Docker Compose plugin are installed on the VPS.
 - The existing Traefik Docker network and ACME certificate resolver names have been identified as described below.
-- The actual ManatureAI checkout directory has been discovered on the VPS and stored as the `VPS_DEPLOY_DIR` Actions repository variable.
+- The actual ManatureAI checkout directory has been discovered on the VPS and stored as the `VPS_DEPLOY_DIR` Actions repository secret.
 
 ## 1. Connect to the Hostinger VPS
 
@@ -107,7 +107,7 @@ docker compose --project-directory "$PROJECT_DIR" \
   -f "$PROJECT_DIR/docker-compose.yml" -p manatureai config --quiet
 ```
 
-Record the confirmed absolute value; it becomes the GitHub repository variable `VPS_DEPLOY_DIR`. Do not put the path into the workflow source.
+Record the confirmed absolute value; it becomes the GitHub repository secret `VPS_DEPLOY_DIR`. Do not put the path into the workflow source.
 
 ## 5. Prepare ManatureAI on the VPS
 
@@ -207,15 +207,10 @@ In GitHub, add these **Actions repository secrets** under **Settings > Secrets a
 | `VPS_USER` | Dedicated SSH deployment account. |
 | `VPS_SSH_KEY` | Entire private key generated for GitHub Actions, including the BEGIN/END lines. |
 | `VPS_PORT` | SSH port, normally `22`. |
-
-Also add these **Actions repository variables**:
-
-| Variable | Value |
-| --- | --- |
 | `VPS_KNOWN_HOSTS` | Complete, independently verified `known_hosts` line for the VPS and configured port. |
 | `VPS_DEPLOY_DIR` | Exact absolute project directory confirmed in section 4. |
 
-SSH host keys are public information, so `VPS_KNOWN_HOSTS` does not need to be a secret. Pinning it prevents a man-in-the-middle connection.
+The workflow reads all six values from `secrets.*`; storing any of them as repository *variables* instead leaves it empty during the run. SSH host keys are public information, so keeping `VPS_KNOWN_HOSTS` as a secret is harmless. Pinning it prevents a man-in-the-middle connection.
 
 GitHub masks registered secrets, and the workflow does not echo them. The workflow grants only read access to repository contents, disables persisted checkout credentials, pins its actions to commit SHAs, validates the SSH parameters, and uses strict host-key checking.
 

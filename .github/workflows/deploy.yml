@@ -74,8 +74,8 @@ jobs:
           VPS_USER: ${{ secrets.VPS_USER }}
           VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
           VPS_PORT: ${{ secrets.VPS_PORT }}
-          VPS_KNOWN_HOSTS: ${{ vars.VPS_KNOWN_HOSTS }}
-          VPS_DEPLOY_DIR: ${{ vars.VPS_DEPLOY_DIR }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+          VPS_DEPLOY_DIR: ${{ secrets.VPS_DEPLOY_DIR }}
         run: |
           set -Eeuo pipefail
           test -n "$VPS_HOST"
@@ -102,7 +102,7 @@ jobs:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}
           VPS_PORT: ${{ secrets.VPS_PORT }}
-          VPS_DEPLOY_DIR: ${{ vars.VPS_DEPLOY_DIR }}
+          VPS_DEPLOY_DIR: ${{ secrets.VPS_DEPLOY_DIR }}
         run: |
           set -Eeuo pipefail
           ssh \
