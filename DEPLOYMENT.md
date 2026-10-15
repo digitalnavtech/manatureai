@@ -224,7 +224,7 @@ docker compose --project-directory "$PROJECT_DIR" \
 docker network inspect TRAEFIK_NETWORK_NAME
 ```
 
-The CI/CD sequence is `npm ci`, ESLint, TypeScript checking, a production Next.js build, a Docker image build, and verification that the Google Search Console file exists in the final image. Deployment runs only if every check succeeds. On the VPS it refuses a missing `.env`, any non-ignored worktree changes, non-fast-forward updates, an unexpected commit, an invalid Compose model, or a missing Traefik network. After recreating only `manatureai`, it checks `/` and the verification file from inside the container and then repeats both checks through public HTTPS.
+The CI/CD sequence is `npm ci`, ESLint, TypeScript checking, a production Next.js build, a Docker image build, and verification that the Google Search Console file exists in the final image. Deployment runs only if every check succeeds. On the VPS it refuses a missing `.env`, any non-ignored worktree changes, non-fast-forward updates, an unexpected commit, an invalid Compose model, or a missing Traefik network. It builds the new image before touching the running container, so a failed build leaves the live site unchanged. After recreating only `manatureai`, it checks `/` and the verification file from inside the container for up to 60 seconds; if that fails it rolls back automatically (see section 10). It then repeats both checks through public HTTPS.
 
 ## 7. Verify the deployment and HTTPS
 
@@ -290,6 +290,41 @@ curl -fsS https://manatureai.com/ > /dev/null
 Do not run `docker compose down`: it creates unnecessary downtime. Keep the previous image until the new deployment has been verified.
 
 ## 10. Roll back a failed deployment
+
+### Automatic rollback
+
+Before each deployment the workflow tags the image of the running container as `manatureai:previous` and records the current commit. Then:
+
+| Failure | What the workflow does | Live site |
+| --- | --- | --- |
+| Docker build fails | Resets the checkout to the previous commit; the running container is never touched. | Unchanged |
+| New container fails the in-container readiness check | Prints the last 50 log lines, resets the checkout to the previous commit, retags `manatureai:previous` as `manatureai:local`, recreates only `manatureai`, and re-runs the readiness check. | Brief restart, then the previous release |
+| Public HTTPS check fails (after a healthy container) | Marks the run failed; no automatic rollback, because the cause is usually DNS, Traefik, or the certificate rather than the release. | New release stays live |
+
+The run is always marked failed after a rollback, so the bad commit is visible in GitHub Actions. Fix it and push again; the next deployment fast-forwards normally.
+
+### Roll back a release that passed its checks
+
+Prefer reverting through Git so the fix goes through the same pipeline:
+
+```bash
+git revert <bad-commit>
+git push origin main
+```
+
+For an emergency on the VPS, restore the previous image without rebuilding (this works only until the next deployment replaces `manatureai:previous`):
+
+```bash
+cd "$PROJECT_DIR"
+docker image tag manatureai:previous manatureai:local
+docker compose -p manatureai up -d --no-build --no-deps --force-recreate manatureai
+docker compose -p manatureai ps
+curl -fsS https://manatureai.com/ > /dev/null
+```
+
+Then push a revert as above so `main` matches what is running.
+
+### Roll back to an older commit
 
 Select a previously reviewed commit, create a temporary rollback branch from it, and push that branch through the same checks before fast-forwarding or reverting `main`. For an emergency manual rollback, check out the known commit in the discovered project directory without modifying `.env`, then rebuild the application service:
 

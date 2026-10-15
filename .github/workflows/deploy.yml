@@ -148,6 +148,7 @@ jobs:
           test -f "public/$verification_file"
 
           test -z "$(git status --porcelain --untracked-files=all)"
+          previous_sha="$(git rev-parse HEAD)"
           git fetch --prune origin main
           git merge --ff-only origin/main
           test "$(git rev-parse HEAD)" = "$expected_sha"
@@ -161,22 +162,56 @@ jobs:
           esac
           docker network inspect "$traefik_network" >/dev/null
 
-          docker compose -p "$compose_project" up -d --build --no-deps "$compose_service"
-          docker compose -p "$compose_project" ps "$compose_service"
-          docker compose -p "$compose_project" exec -T "$compose_service" \
-            test -f "/app/public/$verification_file"
+          wait_until_ready() {
+            for attempt in $(seq 1 30); do
+              if docker compose -p "$compose_project" exec -T "$compose_service" \
+                node -e "Promise.all([fetch('http://127.0.0.1:3000/'), fetch('http://127.0.0.1:3000/$verification_file')]).then(async ([home, verification]) => { const body = (await verification.text()).trim(); if (!home.ok || !verification.ok || body !== 'google-site-verification: googleefaa51ff78d78aac.html') process.exit(1) }).catch(() => process.exit(1))"; then
+                return 0
+              fi
+              sleep 2
+            done
+            return 1
+          }
 
-          for attempt in $(seq 1 30); do
-            if docker compose -p "$compose_project" exec -T "$compose_service" \
-              node -e "Promise.all([fetch('http://127.0.0.1:3000/'), fetch('http://127.0.0.1:3000/$verification_file')]).then(async ([home, verification]) => { const body = (await verification.text()).trim(); if (!home.ok || !verification.ok || body !== 'google-site-verification: googleefaa51ff78d78aac.html') process.exit(1) }).catch(() => process.exit(1))"; then
-              exit 0
-            fi
-            if [ "$attempt" -eq 30 ]; then
-              echo 'The application did not pass its verification-file readiness check.' >&2
-              exit 1
-            fi
-            sleep 2
-          done
+          # Remember the image of the running container so a failed release can be rolled back.
+          previous_container="$(docker compose -p "$compose_project" ps -q "$compose_service")"
+          previous_image=""
+          image_ref=""
+          if [ -n "$previous_container" ]; then
+            previous_image="$(docker inspect --format '{{.Image}}' "$previous_container")"
+            image_ref="$(docker inspect --format '{{.Config.Image}}' "$previous_container")"
+            docker image tag "$previous_image" "${image_ref%%:*}:previous"
+          fi
+
+          # Build before touching the running container; a failed build leaves the site as it was.
+          if ! docker compose -p "$compose_project" build "$compose_service"; then
+            git reset --keep "$previous_sha"
+            echo 'The Docker build failed. The live site was not changed.' >&2
+            exit 1
+          fi
+
+          docker compose -p "$compose_project" up -d --no-build --no-deps "$compose_service"
+          docker compose -p "$compose_project" ps "$compose_service"
+
+          if wait_until_ready; then
+            exit 0
+          fi
+
+          echo 'The new release failed its readiness check. Rolling back.' >&2
+          docker compose -p "$compose_project" logs --tail 50 "$compose_service" >&2 || true
+          git reset --keep "$previous_sha"
+          if [ -z "$previous_image" ]; then
+            echo 'No previous container existed, so there is nothing to roll back to.' >&2
+            exit 1
+          fi
+          docker image tag "$previous_image" "$image_ref"
+          docker compose -p "$compose_project" up -d --no-build --no-deps --force-recreate "$compose_service"
+          if wait_until_ready; then
+            echo "Rolled back to $previous_sha; the previous release is serving traffic." >&2
+          else
+            echo 'Rollback completed but the previous release is also failing its readiness check.' >&2
+          fi
+          exit 1
           REMOTE_SCRIPT
 
       - name: Verify the public HTTPS routes
