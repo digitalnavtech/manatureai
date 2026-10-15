@@ -1,0 +1,181 @@
+name: Verify and deploy ManatureAI
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: manatureai-production
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: "24"
+  COMPOSE_PROJECT_NAME: manatureai
+  COMPOSE_SERVICE: manatureai
+  PUBLIC_BASE_URL: https://manatureai.com
+  VERIFICATION_FILE: googleefaa51ff78d78aac.html
+
+jobs:
+  verify:
+    name: Lint, type-check, and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out the pushed commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Verify production build
+        run: npm run build
+
+      - name: Build the production container image
+        run: docker build --tag manatureai:ci .
+
+      - name: Verify Search Console file in the final image
+        run: |
+          set -Eeuo pipefail
+          expected='google-site-verification: googleefaa51ff78d78aac.html'
+          actual="$(docker run --rm --entrypoint cat manatureai:ci "/app/public/${VERIFICATION_FILE}")"
+          test "$actual" = "$expected"
+
+  deploy:
+    name: Deploy the verified commit
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+
+    steps:
+      - name: Configure SSH
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+          VPS_KNOWN_HOSTS: ${{ vars.VPS_KNOWN_HOSTS }}
+          VPS_DEPLOY_DIR: ${{ vars.VPS_DEPLOY_DIR }}
+        run: |
+          set -Eeuo pipefail
+          test -n "$VPS_HOST"
+          test -n "$VPS_USER"
+          test -n "$VPS_SSH_KEY"
+          test -n "$VPS_PORT"
+          test -n "$VPS_KNOWN_HOSTS"
+          test -n "$VPS_DEPLOY_DIR"
+          [[ "$VPS_HOST" =~ ^[A-Za-z0-9.-]+$ ]]
+          [[ "$VPS_USER" =~ ^[A-Za-z_][A-Za-z0-9_-]*$ ]]
+          [[ "$VPS_PORT" =~ ^[0-9]{1,5}$ ]]
+          (( VPS_PORT >= 1 && VPS_PORT <= 65535 ))
+          [[ "$VPS_DEPLOY_DIR" = /* ]]
+          test "$VPS_DEPLOY_DIR" != "/"
+
+          install -d -m 700 "$HOME/.ssh"
+          printf '%s\n' "$VPS_SSH_KEY" > "$HOME/.ssh/manatureai_deploy"
+          chmod 600 "$HOME/.ssh/manatureai_deploy"
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/known_hosts"
+
+      - name: Update and deploy only ManatureAI
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+          VPS_DEPLOY_DIR: ${{ vars.VPS_DEPLOY_DIR }}
+        run: |
+          set -Eeuo pipefail
+          ssh \
+            -i "$HOME/.ssh/manatureai_deploy" \
+            -p "$VPS_PORT" \
+            -o BatchMode=yes \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            "$VPS_USER@$VPS_HOST" \
+            bash -se -- \
+            "$GITHUB_SHA" \
+            "$VPS_DEPLOY_DIR" \
+            "$COMPOSE_PROJECT_NAME" \
+            "$COMPOSE_SERVICE" \
+            "$VERIFICATION_FILE" <<'REMOTE_SCRIPT'
+          set -Eeuo pipefail
+
+          expected_sha="$1"
+          deploy_dir="$2"
+          compose_project="$3"
+          compose_service="$4"
+          verification_file="$5"
+
+          case "$deploy_dir" in
+            /*) ;;
+            *) echo 'VPS_DEPLOY_DIR must be an absolute path.' >&2; exit 1 ;;
+          esac
+          test "$deploy_dir" != "/"
+          cd -- "$deploy_dir"
+          test -d .git
+          test -f .env
+          test -f "public/$verification_file"
+
+          test -z "$(git status --porcelain --untracked-files=all)"
+          git fetch --prune origin main
+          git merge --ff-only origin/main
+          test "$(git rev-parse HEAD)" = "$expected_sha"
+
+          docker compose -p "$compose_project" config --quiet
+
+          traefik_network="$(sed -n 's/^TRAEFIK_NETWORK=//p' .env | tail -n 1 | tr -d '\r')"
+          test -n "$traefik_network"
+          case "$traefik_network" in
+            *[!A-Za-z0-9_.-]*) echo 'TRAEFIK_NETWORK has an invalid value.' >&2; exit 1 ;;
+          esac
+          docker network inspect "$traefik_network" >/dev/null
+
+          docker compose -p "$compose_project" up -d --build --no-deps "$compose_service"
+          docker compose -p "$compose_project" ps "$compose_service"
+          docker compose -p "$compose_project" exec -T "$compose_service" \
+            test -f "/app/public/$verification_file"
+
+          for attempt in $(seq 1 30); do
+            if docker compose -p "$compose_project" exec -T "$compose_service" \
+              node -e "Promise.all([fetch('http://127.0.0.1:3000/'), fetch('http://127.0.0.1:3000/$verification_file')]).then(async ([home, verification]) => { const body = (await verification.text()).trim(); if (!home.ok || !verification.ok || body !== 'google-site-verification: googleefaa51ff78d78aac.html') process.exit(1) }).catch(() => process.exit(1))"; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 30 ]; then
+              echo 'The application did not pass its verification-file readiness check.' >&2
+              exit 1
+            fi
+            sleep 2
+          done
+          REMOTE_SCRIPT
+
+      - name: Verify the public HTTPS routes
+        run: |
+          set -Eeuo pipefail
+          curl --fail --silent --show-error --location \
+            --retry 10 --retry-all-errors --retry-delay 3 \
+            --output /dev/null "$PUBLIC_BASE_URL/"
+          actual="$(curl --fail --silent --show-error --location \
+            --retry 10 --retry-all-errors --retry-delay 3 \
+            "$PUBLIC_BASE_URL/$VERIFICATION_FILE")"
+          test "$actual" = 'google-site-verification: googleefaa51ff78d78aac.html'
