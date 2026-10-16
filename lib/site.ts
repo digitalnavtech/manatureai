@@ -10,6 +10,7 @@ export const siteConfig = {
     { href: "/birds", label: "Birds" },
     { href: "/guides", label: "Guides" },
     { href: "/best", label: "Best picks" },
+    { href: "/shop", label: "Shop" },
   ],
 } as const;
 

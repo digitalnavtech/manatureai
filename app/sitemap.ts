@@ -6,6 +6,7 @@ import { publishedDate, siteConfig } from "@/lib/site";
 const staticPages = [
   { path: "", changeFrequency: "weekly", priority: 1 },
   { path: "/products", changeFrequency: "weekly", priority: 0.9 },
+  { path: "/shop", changeFrequency: "weekly", priority: 0.9 },
   { path: "/reviews", changeFrequency: "weekly", priority: 0.9 },
   { path: "/birds", changeFrequency: "monthly", priority: 0.8 },
   { path: "/guides", changeFrequency: "monthly", priority: 0.8 },

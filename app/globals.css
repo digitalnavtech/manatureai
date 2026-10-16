@@ -281,6 +281,44 @@ th { width: 34%; background: #f1f4ee; }
   .landing-final .affiliate-button { width: 100%; }
 }
 
+/* Shop (all affiliate links) */
+.page-hero .breadcrumbs { margin-bottom: 28px; }
+.shop-section { padding-top: 64px; }
+.shop-collections { margin: 32px 0 88px; display: grid; gap: 18px; }
+.shop-collection { padding: clamp(30px, 5vw, 52px); display: flex; align-items: center; justify-content: space-between; gap: 24px 48px; color: white; background: var(--forest-dark); border-radius: 26px; }
+.shop-collection .eyebrow { color: #b4d2a9; }
+.shop-collection h2 { margin: 10px 0 12px; font-size: clamp(2rem, 4.5vw, 3.2rem); }
+.shop-collection p { max-width: 620px; color: #d7e2dc; }
+.shop-collection .affiliate-button { flex: 0 0 auto; background: var(--sun); color: var(--ink); padding-inline: 26px; }
+.shop-collection .affiliate-button:hover { background: #f0b64f; }
+.shop-heading { margin-bottom: 32px; }
+.shop-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+.shop-card { overflow: hidden; display: flex; flex-direction: column; background: white; border: 1px solid var(--line); border-radius: 20px; transition: box-shadow .2s, transform .2s; }
+.shop-card:hover { transform: translateY(-3px); box-shadow: 0 18px 44px rgba(20,60,40,.1); }
+.shop-card-image { position: relative; display: block; aspect-ratio: 1 / 1; overflow: hidden; background: #f2f5ef; }
+.shop-card-image img { object-fit: cover; transition: transform .35s; }
+.shop-card-image:hover img { transform: scale(1.03); }
+.shop-card-body { flex: 1; padding: 26px; display: flex; flex-direction: column; }
+.shop-card-body > span { color: var(--moss); font-size: .7rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.shop-card h3 { margin: 10px 0; font-size: 1.6rem; }
+.shop-card h3 a:hover { color: var(--forest); text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1px; }
+.shop-card p { color: var(--muted); font-size: .94rem; }
+.shop-card-actions { margin-top: auto; padding-top: 22px; display: flex; flex-wrap: wrap; align-items: center; gap: 14px 20px; }
+.shop-card-actions .text-link { gap: 4px; font-size: .86rem; }
+.shop-card-actions .text-link svg { width: 16px; }
+.shop-note { margin-top: 32px; color: var(--muted); font-size: .8rem; text-align: center; }
+
+@media (max-width: 900px) {
+  .shop-collection { flex-direction: column; align-items: flex-start; }
+  .shop-grid { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 640px) {
+  .shop-collections { margin-bottom: 64px; }
+  .shop-collection .affiliate-button { width: 100%; }
+  .shop-grid { grid-template-columns: 1fr; }
+}
+
 .legal-prose { max-width: 760px; }
 .legal-prose h2 { margin-top: 42px; }
 .legal-prose p { font-size: 1.02rem; }
