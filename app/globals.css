@@ -117,7 +117,11 @@ p { margin: 0; }
 .listing-card { overflow: hidden; background: white; border: 1px solid var(--line); border-radius: 20px; }
 .listing-card > div:last-child { padding: 30px; }
 .listing-image { position: relative; aspect-ratio: 16/10; overflow: hidden; }
-.listing-image img { object-fit: cover; }
+.listing-image img { object-fit: cover; transition: transform .35s; }
+.listing-image a:hover img { transform: scale(1.03); }
+.listing-card h2 a:hover { color: var(--forest); text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1px; }
+.listing-disclosure { margin-bottom: 28px; }
+.listing-disclosure .disclosure-compact { margin-top: 0; }
 .listing-card h2 { margin: 12px 0; font-size: 2rem; }
 .listing-card p { color: var(--muted); }
 
@@ -212,6 +216,70 @@ th { width: 34%; background: #f1f4ee; }
 .author-box p { color: var(--muted); font-size: .85rem; }
 .related-section { background: var(--cream); }
 .published-note { margin-top: 30px; color: var(--muted); font-size: .75rem; text-align: center; }
+
+/* Product landing page */
+.landing img { display: block; width: 100%; }
+.landing-hero { padding: 24px 0 64px; background: linear-gradient(105deg, #eef3e9 0%, #eef3e9 58%, #dce8d5 58%); }
+.landing-hero-grid { margin: 36px 0 40px; display: grid; grid-template-columns: 1.05fr .95fr; gap: clamp(36px, 6vw, 80px); align-items: center; }
+.landing-hero-copy h1 { margin: 14px 0 14px; font-size: clamp(2.7rem, 5.6vw, 5rem); }
+.landing-subtitle { margin-bottom: 22px !important; color: var(--forest) !important; font: 500 clamp(1.2rem, 2.2vw, 1.5rem)/1.35 var(--font-serif); }
+.landing-hero-copy > p { max-width: 590px; margin-bottom: 12px; color: var(--muted); font-size: 1.07rem; }
+.landing-hero-copy strong { color: var(--ink); }
+.landing-cta { margin-top: 28px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
+.landing-cta .affiliate-button, .landing-final .affiliate-button { background: var(--sun); color: var(--ink); font-size: 1.05rem; padding-inline: 28px; }
+.landing-cta .affiliate-button:hover, .landing-final .affiliate-button:hover { background: #f0b64f; }
+.landing-cta small { max-width: 220px; color: var(--muted); font-size: .74rem; line-height: 1.4; }
+.landing-chips { margin: 26px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 10px; list-style: none; }
+.landing-chips li { display: inline-flex; align-items: center; gap: 7px; padding: 8px 14px; background: white; border: 1px solid var(--line); border-radius: 999px; font-size: .82rem; font-weight: 700; }
+.landing-chips svg, .landing-gift li svg { flex: 0 0 17px; width: 17px; color: var(--forest); }
+.landing-hero-image { margin: 0; padding: clamp(18px, 3vw, 34px); background: white; border-radius: 48% 48% 22px 22px; box-shadow: var(--shadow); }
+.landing-center { margin-inline: auto; text-align: center; }
+.landing-features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+.landing-features article { padding: 28px; background: #f2f5ef; border-radius: 18px; }
+.landing-features h3 { margin: 18px 0 8px; font-size: 1.3rem; }
+.landing-features p { color: var(--muted); font-size: .94rem; }
+.landing-split { margin-top: 64px; display: grid; grid-template-columns: 1fr 1fr; gap: clamp(30px, 6vw, 70px); align-items: center; }
+.landing-split img, .landing-steps-grid img, .landing-gift img { border-radius: 22px; box-shadow: var(--shadow); }
+.landing-split h3 { margin: 10px 0 14px; font-size: clamp(1.9rem, 3.5vw, 2.8rem); }
+.landing-split p { color: var(--muted); font-size: 1.05rem; }
+.landing-steps-section { background: var(--cream); }
+.landing-steps-grid { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(36px, 6vw, 80px); align-items: center; }
+.landing-steps-grid .section-heading { margin-bottom: 26px; }
+.landing-steps { margin: 0; padding: 0; list-style: none; }
+.landing-steps li { display: grid; grid-template-columns: 52px 1fr; gap: 18px; padding: 22px 0; border-top: 1px solid #ddd8c7; }
+.landing-steps li > span { width: 46px; height: 46px; display: grid; place-content: center; color: white; background: var(--forest); border-radius: 50%; font: 600 1.25rem var(--font-serif); }
+.landing-steps h3 { margin: 4px 0 6px; font-size: 1.4rem; }
+.landing-steps p { color: var(--muted); }
+.landing-gap { margin-top: 14px !important; }
+.landing-gift { display: grid; grid-template-columns: 1.1fr .9fr; gap: clamp(36px, 6vw, 80px); align-items: center; }
+.landing-gift h2 { margin: 12px 0 16px; font-size: clamp(2.15rem, 5vw, 3.6rem); }
+.landing-gift > div > p { color: var(--muted); font-size: 1.06rem; }
+.landing-gift h3 { margin: 30px 0 14px; font: 800 .8rem var(--font-sans); letter-spacing: .12em; text-transform: uppercase; color: var(--forest); }
+.landing-gift ul { margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 12px 20px; list-style: none; }
+.landing-gift li { display: flex; align-items: center; gap: 9px; font-weight: 700; }
+.landing-final { padding: clamp(44px, 7vw, 76px) clamp(24px, 7vw, 90px); text-align: center; color: white; background: var(--forest-dark); border-radius: 30px; }
+.landing-final .eyebrow { color: #b4d2a9; }
+.landing-final h2 { max-width: 760px; margin: 12px auto 18px; font-size: clamp(2.1rem, 5vw, 3.6rem); }
+.landing-final p { max-width: 640px; margin: 0 auto 10px; color: #d7e2dc; font-size: 1.06rem; }
+.landing-final .affiliate-button { margin-top: 20px; }
+.landing-final small { margin-top: 14px; display: block; color: #aebcb4; font-size: .74rem; }
+
+@media (max-width: 900px) {
+  .landing-hero { background: #eef3e9; }
+  .landing-hero-grid, .landing-split, .landing-steps-grid, .landing-gift { grid-template-columns: 1fr; }
+  .landing-hero-image { max-width: 560px; width: 100%; margin-inline: auto; }
+  .landing-features { grid-template-columns: 1fr 1fr; }
+  .landing-steps-grid > img, .landing-gift > img { max-width: 600px; margin-inline: auto; }
+}
+
+@media (max-width: 640px) {
+  .landing-hero-grid { margin-top: 26px; }
+  .landing-cta small { max-width: none; }
+  .landing-features, .landing-gift ul { grid-template-columns: 1fr; }
+  .landing-features article { padding: 22px; }
+  .landing-split { margin-top: 44px; }
+  .landing-final .affiliate-button { width: 100%; }
+}
 
 .legal-prose { max-width: 760px; }
 .legal-prose h2 { margin-top: 42px; }
