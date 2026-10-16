@@ -218,6 +218,7 @@ jobs:
             -o StrictHostKeyChecking=yes \
             -o HostKeyAlias=manatureai-vps \
             -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            -o ServerAliveInterval=30 \
             "$VPS_USER@$VPS_HOST" \
             bash -se -- \
             "$GITHUB_SHA" \
@@ -227,41 +228,35 @@ jobs:
             "$VERIFICATION_FILE" <<'REMOTE_SCRIPT'
           set -Eeuo pipefail
 
-          expected_sha="$1"
-          deploy_dir="$2"
-          compose_project="$3"
-          compose_service="$4"
-          verification_file="$5"
+          # Everything is defined as functions and started by the final "main"
+          # line, so bash has read the whole script from stdin before any command
+          # runs. Otherwise a command that reads stdin (docker compose exec) could
+          # swallow the rest of the script, including the rollback.
 
-          case "$deploy_dir" in
-            /*) ;;
-            *) echo 'VPS_DEPLOY_DIR must be an absolute path.' >&2; exit 1 ;;
-          esac
-          test "$deploy_dir" != "/"
-          cd -- "$deploy_dir"
-          test -d .git
-          test -f .env
-          test -f "public/$verification_file"
+          current_step='Starting the remote deployment'
 
-          test -z "$(git status --porcelain --untracked-files=all)"
-          previous_sha="$(git rev-parse HEAD)"
-          git fetch --prune origin main
-          git merge --ff-only origin/main
-          test "$(git rev-parse HEAD)" = "$expected_sha"
+          step() {
+            current_step="$1"
+            echo "==> $1"
+          }
 
-          docker compose -p "$compose_project" config --quiet
+          fail() {
+            echo "::error::$current_step failed: $1" >&2
+            exit 1
+          }
 
-          traefik_network="$(sed -n 's/^TRAEFIK_NETWORK=//p' .env | tail -n 1 | tr -d '\r')"
-          test -n "$traefik_network"
-          case "$traefik_network" in
-            *[!A-Za-z0-9_.-]*) echo 'TRAEFIK_NETWORK has an invalid value.' >&2; exit 1 ;;
-          esac
-          docker network inspect "$traefik_network" >/dev/null
+          on_error() {
+            local status=$?
+            echo "::error::$current_step failed (exit $status at remote line $1): $2" >&2
+          }
 
           wait_until_ready() {
+            local attempt
             for attempt in $(seq 1 30); do
               if docker compose -p "$compose_project" exec -T "$compose_service" \
-                node -e "Promise.all([fetch('http://127.0.0.1:3000/'), fetch('http://127.0.0.1:3000/$verification_file')]).then(async ([home, verification]) => { const body = (await verification.text()).trim(); if (!home.ok || !verification.ok || body !== 'google-site-verification: googleefaa51ff78d78aac.html') process.exit(1) }).catch(() => process.exit(1))"; then
+                node -e "Promise.all([fetch('http://127.0.0.1:3000/'), fetch('http://127.0.0.1:3000/$verification_file')]).then(async ([home, verification]) => { const body = (await verification.text()).trim(); if (!home.ok || !verification.ok || body !== 'google-site-verification: $verification_file') process.exit(1) }).catch(() => process.exit(1))" \
+                </dev/null; then
+                echo "Readiness check passed on attempt $attempt."
                 return 0
               fi
               sleep 2
@@ -269,45 +264,147 @@ jobs:
             return 1
           }
 
-          # Remember the image of the running container so a failed release can be rolled back.
-          previous_container="$(docker compose -p "$compose_project" ps -q "$compose_service")"
-          previous_image=""
-          image_ref=""
-          if [ -n "$previous_container" ]; then
-            previous_image="$(docker inspect --format '{{.Image}}' "$previous_container")"
-            image_ref="$(docker inspect --format '{{.Config.Image}}' "$previous_container")"
-            docker image tag "$previous_image" "${image_ref%%:*}:previous"
-          fi
+          main() {
+            expected_sha="$1"
+            deploy_dir="$2"
+            compose_project="$3"
+            compose_service="$4"
+            verification_file="$5"
+            trap 'on_error "$LINENO" "$BASH_COMMAND"' ERR
 
-          # Build before touching the running container; a failed build leaves the site as it was.
-          if ! docker compose -p "$compose_project" build "$compose_service"; then
+            step 'Validating deployment inputs'
+            [[ "$expected_sha" =~ ^[0-9a-f]{40}$ ]] || fail 'the GitHub commit SHA is not a full 40-character SHA.'
+            [[ "$deploy_dir" = /* ]] || fail 'VPS_DEPLOY_DIR must be an absolute path.'
+            [[ "$deploy_dir" != "/" ]] || fail 'VPS_DEPLOY_DIR must not be /.'
+            [[ "$compose_project" =~ ^[a-z0-9][a-z0-9_-]*$ ]] || fail 'the Compose project name is invalid.'
+            [[ "$compose_service" =~ ^[A-Za-z0-9][A-Za-z0-9_.-]*$ ]] || fail 'the Compose service name is invalid.'
+            echo "Deploying commit $expected_sha (project $compose_project, service $compose_service)."
+
+            step 'Checking the project directory'
+            cd -- "$deploy_dir" 2>/dev/null || fail 'VPS_DEPLOY_DIR does not exist or VPS_USER cannot enter it.'
+            [ -d .git ] || fail 'VPS_DEPLOY_DIR is not a Git checkout (no .git directory).'
+            [ -f .env ] || fail '.env is missing. Create it once on the VPS (DEPLOYMENT.md section 5); the workflow never creates or edits it.'
+            [ -f docker-compose.yml ] || fail 'docker-compose.yml is missing from the checkout.'
+
+            step 'Taking the deployment lock'
+            if command -v flock >/dev/null 2>&1; then
+              exec 9>".git/manatureai-deploy.lock"
+              flock -n 9 || fail 'another ManatureAI deployment is already running on the VPS.'
+            else
+              echo 'flock is not installed; relying on GitHub Actions concurrency only.'
+            fi
+
+            step 'Checking that the VPS checkout has no local changes'
+            local dirty
+            dirty="$(git status --porcelain --untracked-files=all)"
+            if [ -n "$dirty" ]; then
+              echo 'Uncommitted or untracked files on the VPS:' >&2
+              printf '%s\n' "$dirty" >&2
+              fail 'the VPS checkout is not clean. Commit, move or remove these files by hand; the workflow never discards local changes.'
+            fi
+
+            step 'Fetching origin/main from GitHub'
+            local previous_sha
+            previous_sha="$(git rev-parse HEAD)"
+            echo "VPS checkout is currently at $previous_sha."
+            git fetch --prune origin main || fail 'git fetch could not reach GitHub. Check the VPS GitHub deploy key and ~/.ssh/config of VPS_USER (DEPLOYMENT.md section 5).'
+            echo "origin/main is at $(git rev-parse origin/main)."
+
+            step 'Moving the checkout to the pushed commit'
+            git cat-file -e "$expected_sha^{commit}" 2>/dev/null || fail "commit $expected_sha was not found after fetching origin/main."
+            git merge-base --is-ancestor "$expected_sha" origin/main || fail "commit $expected_sha is no longer on origin/main (was main force-pushed?)."
+            if [ "$previous_sha" = "$expected_sha" ]; then
+              echo 'The checkout is already at the pushed commit.'
+            elif git merge-base --is-ancestor "$previous_sha" "$expected_sha"; then
+              git merge --ff-only "$expected_sha"
+            else
+              fail "the VPS checkout ($previous_sha) cannot fast-forward to $expected_sha because it is newer or has diverged. Resolve it by hand; the workflow never rewrites VPS history."
+            fi
+            [ "$(git rev-parse HEAD)" = "$expected_sha" ] || fail "HEAD is $(git rev-parse HEAD), expected $expected_sha."
+            echo "Checkout is at $expected_sha."
+
+            # Checked only after syncing, so files added by the pushed commit are present.
+            step 'Checking the Search Console verification file in the new checkout'
+            [ -f "public/$verification_file" ] || fail "public/$verification_file is not in commit $expected_sha."
+
+            step 'Validating the Docker Compose configuration'
+            docker compose -p "$compose_project" config --quiet
+
+            step 'Checking the existing Traefik network from .env'
+            # Use the value exactly as Compose resolved it from .env (quotes,
+            # spaces and comments included) instead of re-parsing .env by hand.
+            local traefik_network network_containers
+            traefik_network="$(docker compose -p "$compose_project" config \
+              | sed -n 's/^[[:space:]]*traefik\.docker\.network:[[:space:]]*//p' \
+              | head -n 1 | tr -d "\"'\r")"
+            [ -n "$traefik_network" ] || fail 'TRAEFIK_NETWORK did not resolve to a value. Set it in .env to the existing Traefik network.'
+            case "$traefik_network" in
+              *[!A-Za-z0-9_.-]*) fail "TRAEFIK_NETWORK has an invalid value: $traefik_network" ;;
+              bridge|host|none) fail "TRAEFIK_NETWORK must be the shared Traefik network, not Docker's built-in $traefik_network network." ;;
+            esac
+            docker network inspect "$traefik_network" >/dev/null 2>&1 || fail "Docker network $traefik_network does not exist. The workflow never creates networks; fix TRAEFIK_NETWORK in .env."
+            network_containers="$(docker network inspect --format '{{range .Containers}}{{.Name}} {{end}}' "$traefik_network")"
+            echo "Using the existing network $traefik_network (attached: ${network_containers:-none})."
+            case " $network_containers" in
+              *traefik*) ;;
+              *) echo "::warning::No container named like 'traefik' is attached to $traefik_network. Check TRAEFIK_NETWORK if HTTPS routing fails." >&2 ;;
+            esac
+
+            step 'Recording the running release for rollback'
+            local previous_container previous_image="" image_ref
+            image_ref="$(docker compose -p "$compose_project" config --images "$compose_service" | head -n 1)"
+            [ -n "$image_ref" ] || fail "Compose did not report an image name for $compose_service."
+            previous_container="$(docker compose -p "$compose_project" ps -q "$compose_service")"
+            if [ -n "$previous_container" ]; then
+              previous_image="$(docker inspect --format '{{.Image}}' "$previous_container")"
+              docker image tag "$previous_image" "${image_ref%%:*}:previous"
+              echo "Tagged the running image $previous_image as ${image_ref%%:*}:previous."
+            else
+              echo 'No running ManatureAI container was found, so a failed release cannot be rolled back.'
+            fi
+
+            step "Building only the $compose_service image"
+            # Build before touching the running container; a failed build leaves the site as it was.
+            if ! docker compose -p "$compose_project" build "$compose_service"; then
+              git reset --keep "$previous_sha"
+              fail "the Docker build failed. The checkout was returned to $previous_sha and the live site was not changed."
+            fi
+
+            step "Restarting only the $compose_service service"
+            docker compose -p "$compose_project" up -d --no-build --no-deps "$compose_service"
+            docker compose -p "$compose_project" ps "$compose_service"
+
+            step 'Waiting for the new release to pass its readiness check'
+            if wait_until_ready; then
+              step 'Verifying the running container uses the newly built image'
+              local new_container running_image built_image
+              new_container="$(docker compose -p "$compose_project" ps -q "$compose_service")"
+              [ -n "$new_container" ] || fail 'the ManatureAI container is not running after the restart.'
+              running_image="$(docker inspect --format '{{.Image}}' "$new_container")"
+              built_image="$(docker image inspect --format '{{.Id}}' "$image_ref")"
+              [ "$running_image" = "$built_image" ] || fail "the running container uses image $running_image, but the build produced $built_image."
+              echo "Deployed commit $expected_sha as image $built_image."
+              exit 0
+            fi
+
+            echo 'The new release failed its readiness check. Rolling back.' >&2
+            docker compose -p "$compose_project" logs --tail 50 "$compose_service" >&2 || true
+            step "Rolling back to $previous_sha"
             git reset --keep "$previous_sha"
-            echo 'The Docker build failed. The live site was not changed.' >&2
+            if [ -z "$previous_image" ]; then
+              fail 'the new release is not ready and no previous container existed, so there is nothing to roll back to.'
+            fi
+            docker image tag "$previous_image" "$image_ref"
+            docker compose -p "$compose_project" up -d --no-build --no-deps --force-recreate "$compose_service"
+            if wait_until_ready; then
+              echo "::error::Commit $expected_sha failed its readiness check. Rolled back to $previous_sha; the previous release is serving traffic." >&2
+            else
+              echo '::error::Rollback completed but the previous release is also failing its readiness check.' >&2
+            fi
             exit 1
-          fi
+          }
 
-          docker compose -p "$compose_project" up -d --no-build --no-deps "$compose_service"
-          docker compose -p "$compose_project" ps "$compose_service"
-
-          if wait_until_ready; then
-            exit 0
-          fi
-
-          echo 'The new release failed its readiness check. Rolling back.' >&2
-          docker compose -p "$compose_project" logs --tail 50 "$compose_service" >&2 || true
-          git reset --keep "$previous_sha"
-          if [ -z "$previous_image" ]; then
-            echo 'No previous container existed, so there is nothing to roll back to.' >&2
-            exit 1
-          fi
-          docker image tag "$previous_image" "$image_ref"
-          docker compose -p "$compose_project" up -d --no-build --no-deps --force-recreate "$compose_service"
-          if wait_until_ready; then
-            echo "Rolled back to $previous_sha; the previous release is serving traffic." >&2
-          else
-            echo 'Rollback completed but the previous release is also failing its readiness check.' >&2
-          fi
-          exit 1
+          main "$@"
           REMOTE_SCRIPT
 
       - name: Verify the public HTTPS routes
