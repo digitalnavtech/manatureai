@@ -81,7 +81,7 @@ p { margin: 0; }
 .topic-number { color: var(--moss); font-size: .75rem; font-weight: 800; }
 .topic-grid h3 { margin: 52px 0 12px; font-size: 1.75rem; }
 .topic-grid p { color: var(--muted); }
-.topic-grid b, .related-grid b, .listing-card a { margin-top: 22px; display: inline-flex; gap: 5px; align-items: center; color: var(--forest); font-size: .86rem; }
+.topic-grid b, .related-grid b, .listing-card > div:not(.listing-image) > a { margin-top: 22px; display: inline-flex; gap: 5px; align-items: center; color: var(--forest); font-size: .86rem; }
 .topic-grid svg, .related-grid svg, .listing-card svg { width: 17px; }
 .featured-section { background: var(--forest-dark); color: white; }
 .featured-grid { display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: clamp(40px, 8vw, 110px); }
